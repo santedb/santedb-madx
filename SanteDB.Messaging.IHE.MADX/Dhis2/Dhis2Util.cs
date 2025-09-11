@@ -2,7 +2,6 @@
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Queue;
 using System;
-using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -20,7 +19,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         private static IDhis2DispatchService m_dispatcher;
 
         // Temporary string for the queue name
-        private static string queueName = Dhis2Constants.QueueName;
+        private static string queueName = "sys.dhis2";
 
         /// <summary>
         /// DHIS2 Utility
