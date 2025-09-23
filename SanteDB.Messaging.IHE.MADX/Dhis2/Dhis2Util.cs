@@ -1,4 +1,5 @@
-﻿using SanteDB.Core;
+﻿using Newtonsoft.Json;
+using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Queue;
 using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
@@ -49,7 +50,8 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             {
                 try
                 {
-                    m_dispatcher.SendMessage(queueEntry.Body);
+                    var serializedBody = JsonConvert.SerializeObject(queueEntry.Body);
+                    m_dispatcher.SendMessage(serializedBody);
                 }
                 catch (Exception ex)
                 {
