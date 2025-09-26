@@ -28,7 +28,12 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         /// <summary>
         /// DI constructor
         /// </summary>
-        public Dhis2Dispatcher() {}
+        public Dhis2Dispatcher() 
+        {
+            this.m_configuration.Endpoint = Environment.GetEnvironmentVariable("DHIS2_ENDPOINT");
+            this.m_configuration.UserName = Environment.GetEnvironmentVariable("DHIS2_USERNAME");
+            this.m_configuration.Password = Environment.GetEnvironmentVariable("DHIS2_PASSWORD");
+        }
 
         /// <summary>
         /// Send a message to DHIS2
