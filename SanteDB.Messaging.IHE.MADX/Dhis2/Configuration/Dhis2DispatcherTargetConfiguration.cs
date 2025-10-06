@@ -45,18 +45,10 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2.Configuration
         /// <summary>
         /// Gets or sets the username or authentication data
         /// </summary>
-        [XmlElement("user")]
-        [DisplayName("Authentication")]
-        [Description("If the remote endpoint requires an authentication scheme, this is the username to pass to the authenticator")]
-        public string UserName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the password for authentication data
-        /// </summary>
-        [XmlElement("password")]
+        [XmlElement("token")]
         [DisplayName("Secret")]
-        [Description("If the remote endpoint requires authentication, this is the secret to pass to the authenticator")]
-        public string Password { get; set; }
+        [Description("If the remote endpoint requires an authentication scheme, this is an Api Token to pass to the authenticator")]
+        public string ApiToken { get; set; }
 
         /// <summary>
         /// Gets or sets the class which authenticates requests
