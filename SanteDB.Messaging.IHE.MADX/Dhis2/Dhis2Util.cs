@@ -4,6 +4,16 @@ using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Queue;
 using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using Hl7.Fhir.Model;
+using SanteDB.BI.Model;
+using SanteDB.BI.Services;
+using SanteDB.Messaging.FHIR.Extensions;
+using SanteDB.Messaging.FHIR.Operations;
+using SanteDB.Messaging.IHE.MADX.Dhis2.Models;
+using SanteDB.Messaging.FHIR.Exceptions;
+using DocumentFormat.OpenXml.Drawing.Charts;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -16,6 +26,13 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
         // Queue service
         private static IDispatcherQueueManagerService m_queueService;
+
+        // FHIR operation handler
+        private static IFhirOperationHandler m_fhirOperationHandler;
+
+        private static readonly IBiMetadataRepository m_repository;
+
+        private static IBiDataSource m_biDataSource;
 
         // Dispatcher service
         private static Dhis2Dispatcher m_dispatcher;
@@ -30,6 +47,9 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             try
             {
                 m_dispatcher = ApplicationServiceContext.Current.GetService<Dhis2Dispatcher>();
+                m_fhirOperationHandler = ApplicationServiceContext.Current.GetService<FhirEvaluateMeasureOperation>();
+                m_biDataSource = ApplicationServiceContext.Current.GetService<IBiDataSource>();
+                m_repository = ApplicationServiceContext.Current.GetService<IBiMetadataRepository>();
                 m_queueService = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>();
                 if (m_dispatcher == null)
                 {
@@ -58,6 +78,33 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
                     traceSource.TraceError("Error dispatching message - {0}", ex);
                 }
             }
+        }
+
+        private static DataValueSet ConvertToDataValueSet(string indicatorId)
+        {
+            var dataValueSet = new DataValueSet();
+
+            var indicatorDef = m_repository.Get<BiIndicatorDefinition>(indicatorId);
+
+            if (indicatorDef == null)
+            {
+                throw new FhirException(System.Net.HttpStatusCode.BadRequest, OperationOutcome.IssueType.NotFound, $"Measure org.santedb.ims.bi.indicators.stock.alarmEvents not registered");
+            }
+
+            foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, BiIndicatorPeriod.Empty).GroupBy(o => o.Measure))
+            {
+                foreach (var measureResult in indicatorResult)
+                {
+                    dataValueSet.DataSet = measureResult.Measure.Id;
+                    dataValueSet.CompleteDate = DateTime.Now.ToString("yyyy-MM-dd");
+                    dataValueSet.Period = measureResult.StartTime.ToString();
+                    dataValueSet.OrgUnit = "";
+                    dataValueSet.AttributeOptionCombo = "";
+                    dataValueSet.DataValues = new List<DataValue>();
+                }
+            }
+
+            return dataValueSet;
         }
     }
 }
