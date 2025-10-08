@@ -30,8 +30,11 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         /// </summary>
         public Dhis2Dispatcher() 
         {
-            this.m_configuration.Endpoint = Environment.GetEnvironmentVariable("DHIS2_ENDPOINT");
-            this.m_configuration.ApiToken = Environment.GetEnvironmentVariable("DHIS2_API_TOKEN");
+            this.m_configuration = new Dhis2DispatcherTargetConfiguration
+            {
+                Endpoint = Environment.GetEnvironmentVariable("DHIS2_ENDPOINT"),
+                ApiToken = Environment.GetEnvironmentVariable("DHIS2_API_TOKEN")
+            };
         }
 
         /// <summary>
@@ -44,7 +47,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
                 var authString = $"ApiToken {this.m_configuration.ApiToken}";
                 m_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("X-API-Key", Convert.ToBase64String(Encoding.UTF8.GetBytes(authString)));
                 m_httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                
+
                 var response = m_httpClient.PostAsync(this.m_configuration.Endpoint, new StringContent(message)).GetAwaiter().GetResult();
                 response.EnsureSuccessStatusCode();
             }
