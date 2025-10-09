@@ -51,7 +51,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
                 m_biDataSource = ApplicationServiceContext.Current.GetService<IBiDataSource>();
                 m_repository = ApplicationServiceContext.Current.GetService<IBiMetadataRepository>();
                 m_queueService = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>();
-                if (m_dispatcher == null)
+                if (m_queueService != null)
                 {
                     m_queueService.Open(queueName);
                     m_queueService.SubscribeTo(queueName, MessageQueued);
