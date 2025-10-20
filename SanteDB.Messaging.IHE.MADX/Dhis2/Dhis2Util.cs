@@ -9,11 +9,14 @@ using System.Linq;
 using Hl7.Fhir.Model;
 using SanteDB.BI.Model;
 using SanteDB.BI.Services;
-using SanteDB.Messaging.FHIR.Extensions;
-using SanteDB.Messaging.FHIR.Operations;
-using SanteDB.Messaging.IHE.MADX.Dhis2.Models;
+using SanteDB.BI.Util;
 using SanteDB.Messaging.FHIR.Exceptions;
-using DocumentFormat.OpenXml.Drawing.Charts;
+using SanteDB.Messaging.IHE.MADX.Dhis2.Models;
+using SanteDB.Messaging.FHIR.Util;
+using SanteDB.Core.i18n;
+using SanteDB.Core.Model.DataTypes;
+using SanteDB.Core.Model.Entities;
+using SanteDB.Core.Services;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -27,12 +30,14 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         // Queue service
         private static IDispatcherQueueManagerService m_queueService;
 
-        // FHIR operation handler
-        private static IFhirOperationHandler m_fhirOperationHandler;
+        //// FHIR operation handler
+        //private static IFhirOperationHandler m_fhirOperationHandler;
 
         private static readonly IBiMetadataRepository m_repository;
 
         private static IBiDataSource m_biDataSource;
+
+        private static IIdentityDomainRepositoryService m_identityDomainRepositoryService;
 
         // Dispatcher service
         private static Dhis2Dispatcher m_dispatcher;
@@ -47,7 +52,8 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             try
             {
                 m_dispatcher = ApplicationServiceContext.Current.GetService<Dhis2Dispatcher>();
-                m_fhirOperationHandler = ApplicationServiceContext.Current.GetService<FhirEvaluateMeasureOperation>();
+                //m_fhirOperationHandler = ApplicationServiceContext.Current.GetService<FhirEvaluateMeasureOperation>();
+                m_identityDomainRepositoryService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 m_biDataSource = ApplicationServiceContext.Current.GetService<IBiDataSource>();
                 m_repository = ApplicationServiceContext.Current.GetService<IBiMetadataRepository>();
                 m_queueService = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>();
@@ -80,27 +86,50 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             }
         }
 
-        private static DataValueSet ConvertToDataValueSet(string indicatorId)
+        public static DataValueSet ConvertToDataValueSet(string indicatorId, Guid subjectId)
         {
             var dataValueSet = new DataValueSet();
 
             var indicatorDef = m_repository.Get<BiIndicatorDefinition>(indicatorId);
 
+            indicatorDef = BiUtils.ResolveRefs(indicatorDef);
+
             if (indicatorDef == null)
             {
-                throw new FhirException(System.Net.HttpStatusCode.BadRequest, OperationOutcome.IssueType.NotFound, $"Measure org.santedb.ims.bi.indicators.stock.alarmEvents not registered");
+                throw new FhirException(System.Net.HttpStatusCode.BadRequest, OperationOutcome.IssueType.NotFound, $"Measure {indicatorId} not registered");
             }
+
+            var dataSetId = indicatorDef.Identifier.FirstOrDefault()?.Value;
+
+            var subjRepo = typeof(IRepositoryService<>).MakeGenericType(indicatorDef.Subject.ResourceType);
+            var repo = ApplicationServiceContext.Current.GetService(subjRepo) as IRepositoryService;
+            var subject = repo.Get(subjectId);
+
+            var orgUnitId = ((Place)subject).Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "DHIS 2")?.Value;
+
+            dataValueSet.DataSet = dataSetId;
+            dataValueSet.CompleteDate = DateTimeOffset.Now.ToString("yyyy-MM-dd");
+            dataValueSet.Period = DateTimeOffset.Now.AddMonths(-1).ToString("yyyyMM");
+            dataValueSet.OrgUnit = orgUnitId;
+
+            dataValueSet.DataValues.Add(new DataValue
+            {
+                DataElement = "JgjkI5wSi1Y",
+                Value = "1"
+            });
 
             foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, BiIndicatorPeriod.Empty).GroupBy(o => o.Measure))
             {
+                //var measureGroup = new MeasureReport.GroupComponent();
+
                 foreach (var measureResult in indicatorResult)
                 {
-                    dataValueSet.DataSet = measureResult.Measure.Id;
-                    dataValueSet.CompleteDate = DateTime.Now.ToString("yyyy-MM-dd");
-                    dataValueSet.Period = measureResult.StartTime.ToString();
-                    dataValueSet.OrgUnit = "";
-                    dataValueSet.AttributeOptionCombo = "";
-                    dataValueSet.DataValues = new List<DataValue>();
+
+                    //dataValueSet.DataValues.Add(new DataValue()
+                    //{
+                    //    DataElement = measureResult.Indicator.Name,
+                    //    Value = measureResult.,
+                    //});
                 }
             }
 

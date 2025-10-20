@@ -5,6 +5,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -50,10 +52,27 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
                 var response = m_httpClient.PostAsync(this.m_configuration.Endpoint, new StringContent(message)).GetAwaiter().GetResult();
                 response.EnsureSuccessStatusCode();
+
+                // Save result into the database
+                var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var json = JObject.Parse(content);
+
+                var importCount = json["response"]["importCount"];
+
+                var imported = importCount["imported"]?.Value<int>();
+                var updated = importCount["updated"]?.Value<int>();
+                var ignored = importCount["ignored"]?.Value<int>();
+
+                if (imported + updated + ignored > 0)
+                {
+                    // into database
+                }
             }
             catch (Exception e)
             {
                 this.m_tracer.TraceError("Error dispatching message - {0}", e.Message);
+                
+                // Save result into database
             }
         }
     }

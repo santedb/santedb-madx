@@ -18,12 +18,16 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Jobs;
 using SanteDB.BI.Model;
 using SanteDB.BI.Services;
 using SanteDB.Core;
+using SanteDB.Core.Model.Entities;
 using SanteDB.Core.Queue;
+using SanteDB.Core.Services;
+using SanteDB.Messaging.IHE.MADX.Dhis2;
 using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
 
 namespace SanteDB.Messaging.IHE.MADX.Jobs
@@ -35,6 +39,8 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
         private readonly IJobStateManagerService m_jobStateManager;
 
         private readonly IBiMetadataRepository m_repository;
+
+        private readonly IRepositoryService<Place> m_placeRepository;
 
         private IDispatcherQueueManagerService m_queueService;
 
@@ -90,6 +96,7 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
             m_tracer = Tracer.GetTracer(GetType());
             m_jobStateManager = jobStateManagerService;
             m_repository = ApplicationServiceContext.Current.GetService<IBiMetadataRepository>();
+            m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
             m_queueService = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>();
             if (m_queueService != null)
             {
@@ -115,18 +122,25 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
                 LastStarted = DateTime.Now;
 
                 // Query for indicators that have DHIS2 identifiers
-                var indicatorDefinitions = m_repository.Query<BiIndicatorDefinition>(i => i.Identifier.System.Equals(dhis2SystemName));
+                // Querying against the measure instead of the outer identifier because the outer identifier
+                // is mapped to the dataset which is optional but the measure identifier is mapped to the
+                // data element id which is not optional 
+                var indicatorDefinitions = m_repository.Query<BiIndicatorDefinition>(o => o.Measures.Any(x => x.Identifier.Any(y => y.System == "DHIS 2")));
+                var places = m_placeRepository.Find(p => p.Identifiers.Any(o => o.IdentityDomain.DomainName == "DHIS 2"));
+
                 foreach (var indicatorDefinition in indicatorDefinitions)
                 {
-                    Console.WriteLine(indicatorDefinition.Name);
+                    foreach (var place in places)
+                    {
+                        Console.WriteLine(indicatorDefinition.Name);
 
-                    /*
-                    // Convert indicator to a DataValueSet instance
-                    var dataValueSet = Dhis2Util.ConvertToDataValueSet(indicatorDefinition.Id);
+                        // Convert indicator to a DataValueSet instance
+                        var dataValueSet = Dhis2Util.ConvertToDataValueSet(indicatorDefinition.Id, place.Key.Value);
 
-                    // Enqueue DataValueSet instance using the DHIS2 dispatcher queue
-                    this.m_queueService.Enqueue(dhis2QueueName, dataValueSet);
-                    */
+                        // Enqueue DataValueSet instance using the DHIS2 dispatcher queue
+                        this.m_queueService.Enqueue(dhis2QueueName, dataValueSet);
+
+                    }
                 }
 
                 if (m_cancelRequested)

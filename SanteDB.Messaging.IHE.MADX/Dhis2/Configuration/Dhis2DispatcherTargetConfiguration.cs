@@ -51,6 +51,14 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2.Configuration
         public string ApiToken { get; set; }
 
         /// <summary>
+        /// Gets or sets the domain
+        /// </summary>
+        [XmlElement("domain")]
+        [DisplayName("Domain")]
+        [Description("The domain used for reconciling DHIS2 indicators. This domain must be the same as the domain when setting up the identity domain for DHIS2 identifiers.")]
+        public string Domain { get; set; }
+
+        /// <summary>
         /// Gets or sets the class which authenticates requests
         /// </summary>
         [XmlElement("authenticator")]
