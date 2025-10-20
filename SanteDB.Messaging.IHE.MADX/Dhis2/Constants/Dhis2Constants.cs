@@ -7,5 +7,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2.Constants
     public static class Dhis2Constants
     {
         public const string QueueName = "sys.dhis2";
+
+        public const string SystemName = "DHIS_INDICATORS";
     }
 }
