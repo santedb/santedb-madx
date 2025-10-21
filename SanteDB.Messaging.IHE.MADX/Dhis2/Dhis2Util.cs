@@ -40,7 +40,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         private static IIdentityDomainRepositoryService m_identityDomainRepositoryService;
 
         // Dispatcher service
-        private static Dhis2Dispatcher m_dispatcher;
+        private static Dhis2Dispatcher m_dhis2Dispatcher;
 
         private static string queueName = Dhis2Constants.QueueName;
 
@@ -51,7 +51,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         {
             try
             {
-                m_dispatcher = ApplicationServiceContext.Current.GetService<Dhis2Dispatcher>();
+                m_dhis2Dispatcher = new Dhis2Dispatcher();
                 //m_fhirOperationHandler = ApplicationServiceContext.Current.GetService<FhirEvaluateMeasureOperation>();
                 m_identityDomainRepositoryService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 m_biDataSource = ApplicationServiceContext.Current.GetService<IBiDataSource>();
@@ -77,7 +77,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
                 try
                 {
                     var serializedBody = JsonConvert.SerializeObject(queueEntry.Body);
-                    m_dispatcher.SendMessage(serializedBody);
+                    m_dhis2Dispatcher.SendMessage(serializedBody);
                 }
                 catch (Exception ex)
                 {
