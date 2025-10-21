@@ -5,6 +5,7 @@ using SanteDB.Core.Queue;
 using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Hl7.Fhir.Model;
 using SanteDB.BI.Model;
@@ -17,6 +18,9 @@ using SanteDB.Core.i18n;
 using SanteDB.Core.Model.DataTypes;
 using SanteDB.Core.Model.Entities;
 using SanteDB.Core.Services;
+using SanteDB.Core.Security;
+using DocumentFormat.OpenXml.Spreadsheet;
+using SanteDB.Core.Configuration;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -114,31 +118,96 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             dataValueSet.OrgUnit = orgUnitId;
             dataValueSet.DataValues = new List<DataValue>();
 
-            if (dataValueSet.DataValues != null)
+            var period = new BiIndicatorPeriod(new DateTime(2025, 08, 01), new DateTime(2025, 08, 31));
+
+            foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, period, subject.Key.ToString()).GroupBy(o => o.Measure))
             {
-                dataValueSet.DataValues.Add(new DataValue
+                foreach (var measureResult in indicatorResult)
                 {
-                    DataElement = "JgjkI5wSi1Y",
-                    Value = "1"
-                });
+                    if (String.IsNullOrEmpty(measureResult.StratifierPath))
+                    {
+                        var currentRecord = measureResult.Records.SingleOrDefault() as IDictionary<String, object>;
+
+                        if (currentRecord == null) { continue; }
+
+                        // Numerator and denominator
+                        ConvertComputation(currentRecord, measureResult.Measure, out var numeratorValue, out var denominatorValue, out var scoreObtained);
+
+                        var dataElement = measureResult.Measure.Identifier.FirstOrDefault(o => o.System == "DHIS 2")?.Value;
+
+                        if (scoreObtained.HasValue)
+                        {
+                            dataValueSet.DataValues.Add(new DataValue()
+                            {
+                                DataElement = dataElement,
+                                Value = scoreObtained.Value.ToString()
+                            });
+                        }
+                        else
+                        {
+                            if (denominatorValue.HasValue)
+                            {
+                                dataValueSet.DataValues.Add(new DataValue()
+                                {
+                                    DataElement = dataElement,
+                                    Value = ((float)numeratorValue / (float)denominatorValue).ToString(CultureInfo.InvariantCulture)
+                                });
+                            }
+                            else
+                            {
+                                dataValueSet.DataValues.Add(new DataValue()
+                                {
+                                    DataElement = dataElement,
+                                    Value = ((decimal)numeratorValue).ToString(CultureInfo.InvariantCulture)
+                                });
+                            }
+                        }
+                    }
+                    
+                }
             }
 
-            //foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, BiIndicatorPeriod.Empty).GroupBy(o => o.Measure))
-            //{
-            //    //var measureGroup = new MeasureReport.GroupComponent();
-
-            //    foreach (var measureResult in indicatorResult)
-            //    {
-
-            //        //dataValueSet.DataValues.Add(new DataValue()
-            //        //{
-            //        //    DataElement = measureResult.Indicator.Name,
-            //        //    Value = measureResult.,
-            //        //});
-            //    }
-            //}
-
             return dataValueSet;
+        }
+
+        private static void ConvertComputation(IDictionary<String, object> currentRecord, BiIndicatorMeasureDefinition measure, out long? numeratorValue, out long? denominatorValue, out decimal? scoreObtained)
+        {
+            numeratorValue = null;
+            denominatorValue = null;
+            scoreObtained = null;
+
+            foreach (var calc in measure.Computation)
+            {
+                switch (calc)
+                {
+                    case BiMeasureComputationNumerator cNumerator:
+                        numeratorValue = (long)currentRecord[calc.Name];
+                        break;
+                    case BiMeasureComputationNumeratorExclusion cNumeratorExcl:
+                        numeratorValue -= (long)currentRecord[calc.Name];
+                        break;
+                    case BiMeasureComputationDenominator cDenominator:
+                        denominatorValue = (long)currentRecord[calc.Name];
+                        break;
+                    case BiMeasureComputationDenominatorExclusion cDenominator:
+                        denominatorValue -= (long)currentRecord[calc.Name];
+                        break;
+                    case BiMeasureComputationScore cScore:
+                        var rawValue = currentRecord[calc.Name];
+                        if (rawValue == null)
+                        {
+                            scoreObtained = 0;
+                        }
+                        else if (rawValue is Decimal d || Decimal.TryParse(rawValue.ToString(), out d))
+                        {
+                            scoreObtained = d;
+                        }
+                        continue;
+                    default:
+                        continue;
+                }
+
+            }
         }
     }
 }
