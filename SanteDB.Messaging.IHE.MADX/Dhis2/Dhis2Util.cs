@@ -92,46 +92,51 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
             var indicatorDef = m_repository.Get<BiIndicatorDefinition>(indicatorId);
 
-            indicatorDef = BiUtils.ResolveRefs(indicatorDef);
 
             if (indicatorDef == null)
             {
                 throw new FhirException(System.Net.HttpStatusCode.BadRequest, OperationOutcome.IssueType.NotFound, $"Measure {indicatorId} not registered");
             }
 
-            var dataSetId = indicatorDef.Identifier.FirstOrDefault()?.Value;
+            indicatorDef = BiUtils.ResolveRefs(indicatorDef);
+
+            var dataSetId = indicatorDef.Identifier.FirstOrDefault(o => o.System == "DHIS 2")?.Value;
 
             var subjRepo = typeof(IRepositoryService<>).MakeGenericType(indicatorDef.Subject.ResourceType);
             var repo = ApplicationServiceContext.Current.GetService(subjRepo) as IRepositoryService;
             var subject = repo.Get(subjectId);
 
-            var orgUnitId = ((Place)subject).Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "DHIS 2")?.Value;
+            var orgUnitId = ((Place)subject).Identifiers.FirstOrDefault(o => o.IdentityDomain.Name == "DHIS 2")?.Value;
 
             dataValueSet.DataSet = dataSetId;
             dataValueSet.CompleteDate = DateTimeOffset.Now.ToString("yyyy-MM-dd");
             dataValueSet.Period = DateTimeOffset.Now.AddMonths(-1).ToString("yyyyMM");
             dataValueSet.OrgUnit = orgUnitId;
+            dataValueSet.DataValues = new List<DataValue>();
 
-            dataValueSet.DataValues.Add(new DataValue
+            if (dataValueSet.DataValues != null)
             {
-                DataElement = "JgjkI5wSi1Y",
-                Value = "1"
-            });
-
-            foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, BiIndicatorPeriod.Empty).GroupBy(o => o.Measure))
-            {
-                //var measureGroup = new MeasureReport.GroupComponent();
-
-                foreach (var measureResult in indicatorResult)
+                dataValueSet.DataValues.Add(new DataValue
                 {
-
-                    //dataValueSet.DataValues.Add(new DataValue()
-                    //{
-                    //    DataElement = measureResult.Indicator.Name,
-                    //    Value = measureResult.,
-                    //});
-                }
+                    DataElement = "JgjkI5wSi1Y",
+                    Value = "1"
+                });
             }
+
+            //foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, BiIndicatorPeriod.Empty).GroupBy(o => o.Measure))
+            //{
+            //    //var measureGroup = new MeasureReport.GroupComponent();
+
+            //    foreach (var measureResult in indicatorResult)
+            //    {
+
+            //        //dataValueSet.DataValues.Add(new DataValue()
+            //        //{
+            //        //    DataElement = measureResult.Indicator.Name,
+            //        //    Value = measureResult.,
+            //        //});
+            //    }
+            //}
 
             return dataValueSet;
         }
