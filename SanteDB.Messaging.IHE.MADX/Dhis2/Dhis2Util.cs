@@ -21,6 +21,8 @@ using SanteDB.Core.Services;
 using SanteDB.Core.Security;
 using DocumentFormat.OpenXml.Spreadsheet;
 using SanteDB.Core.Configuration;
+using SanteDB.Messaging.IHE.MADX.Dhis2.Configuration;
+using System.Configuration;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -33,9 +35,6 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
         // Queue service
         private static IDispatcherQueueManagerService m_queueService;
-
-        //// FHIR operation handler
-        //private static IFhirOperationHandler m_fhirOperationHandler;
 
         private static readonly IBiMetadataRepository m_repository;
 
@@ -56,7 +55,6 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             try
             {
                 m_dhis2Dispatcher = new Dhis2Dispatcher();
-                //m_fhirOperationHandler = ApplicationServiceContext.Current.GetService<FhirEvaluateMeasureOperation>();
                 m_identityDomainRepositoryService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 m_biDataSource = ApplicationServiceContext.Current.GetService<IBiDataSource>();
                 m_repository = ApplicationServiceContext.Current.GetService<IBiMetadataRepository>();
@@ -90,7 +88,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             }
         }
 
-        public static DataValueSet ConvertToDataValueSet(string indicatorId, Guid subjectId)
+        public static DataValueSet ConvertToDataValueSet(string indicatorId, Guid subjectId, string domain)
         {
             var dataValueSet = new DataValueSet();
 
@@ -104,13 +102,13 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
             indicatorDef = BiUtils.ResolveRefs(indicatorDef);
 
-            var dataSetId = indicatorDef.Identifier.FirstOrDefault(o => o.System == "DHIS 2")?.Value;
+            var dataSetId = indicatorDef.Identifier.FirstOrDefault(o => o.System == domain)?.Value;
 
             var subjRepo = typeof(IRepositoryService<>).MakeGenericType(indicatorDef.Subject.ResourceType);
             var repo = ApplicationServiceContext.Current.GetService(subjRepo) as IRepositoryService;
             var subject = repo.Get(subjectId);
 
-            var orgUnitId = ((Place)subject).Identifiers.FirstOrDefault(o => o.IdentityDomain.Name == "DHIS 2")?.Value;
+            var orgUnitId = ((Place)subject).Identifiers.FirstOrDefault(o => o.IdentityDomain.Name == domain)?.Value;
 
             dataValueSet.DataSet = dataSetId;
             dataValueSet.CompleteDate = DateTimeOffset.Now.ToString("yyyy-MM-dd");
@@ -133,7 +131,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
                         // Numerator and denominator
                         ConvertComputation(currentRecord, measureResult.Measure, out var numeratorValue, out var denominatorValue, out var scoreObtained);
 
-                        var dataElement = measureResult.Measure.Identifier.FirstOrDefault(o => o.System == "DHIS 2")?.Value;
+                        var dataElement = measureResult.Measure.Identifier.FirstOrDefault(o => o.System == domain)?.Value;
 
                         if (scoreObtained.HasValue)
                         {

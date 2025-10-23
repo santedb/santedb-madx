@@ -7,6 +7,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SanteDB.Core.Services;
+using SanteDB.Core;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -25,18 +27,15 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
         private static readonly HttpClient m_httpClient = new HttpClient();
 
-        private Dhis2DispatcherTargetConfiguration m_configuration;
+        private Dhis2DispatcherConfigurationSection m_configuration;
 
         /// <summary>
         /// DI constructor
         /// </summary>
         public Dhis2Dispatcher() 
         {
-            this.m_configuration = new Dhis2DispatcherTargetConfiguration
-            {
-                Endpoint = Environment.GetEnvironmentVariable("DHIS2_ENDPOINT"),
-                ApiToken = Environment.GetEnvironmentVariable("DHIS2_API_TOKEN")
-            };
+            var configManager = ApplicationServiceContext.Current.GetService<IConfigurationManager>();
+            m_configuration = configManager.GetSection<Dhis2DispatcherConfigurationSection>();
         }
 
         /// <summary>

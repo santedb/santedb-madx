@@ -30,6 +30,8 @@ using SanteDB.Core.Services;
 using SanteDB.Messaging.IHE.MADX.Dhis2;
 using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
 using SanteDB.Core.Security;
+using SanteDB.Messaging.IHE.MADX.Dhis2.Configuration;
+using SanteDB.Messaging.FHIR.Configuration;
 
 namespace SanteDB.Messaging.IHE.MADX.Jobs
 {
@@ -48,6 +50,8 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
         private string dhis2QueueName = Dhis2Constants.QueueName;
 
         private string dhis2SystemName = Dhis2Constants.SystemName;
+
+        private Dhis2DispatcherConfigurationSection m_configuration;
 
         private readonly Tracer m_tracer;
 
@@ -99,6 +103,8 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
             m_repository = ApplicationServiceContext.Current.GetService<IBiMetadataRepository>();
             m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
             m_queueService = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>();
+            var configManager = ApplicationServiceContext.Current.GetService<IConfigurationManager>();
+            m_configuration = configManager.GetSection<Dhis2DispatcherConfigurationSection>();
             if (m_queueService != null)
             {
                 m_queueService.Open(dhis2QueueName);
@@ -127,21 +133,16 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
                     // Query for indicators that have DHIS2 identifiers
                     // Querying against the measure instead of the outer identifier because the outer identifier
                     // is mapped to the dataset which is optional but the measure identifier is mapped to the
-                    // data element id which is not optional 
-                    var indicatorDefinitions = m_repository.Query<BiIndicatorDefinition>(o => o.Measures.Any(x => x.Identifier.Any(y => y.System == "DHIS 2")));
-                    var places = m_placeRepository.Find(p => p.Identifiers.Any(o => o.IdentityDomain.Name == "DHIS 2"));
-
-                    Console.WriteLine(indicatorDefinitions.Count());
-                    Console.WriteLine(places.Count());
+                    // data element id which is not optional
+                    var indicatorDefinitions = m_repository.Query<BiIndicatorDefinition>(o => o.Measures.Any(x => x.Identifier.Any(y => y.System == m_configuration.Domain)));
+                    var places = m_placeRepository.Find(p => p.Identifiers.Any(o => o.IdentityDomain.Name == m_configuration.Domain));
 
                     foreach (var indicatorDefinition in indicatorDefinitions)
                     {
                         foreach (var place in places)
                         {
-                            Console.WriteLine(indicatorDefinition.Name);
-
                             // Convert indicator to a DataValueSet instance
-                            var dataValueSet = Dhis2Util.ConvertToDataValueSet(indicatorDefinition.Id, place.Key.Value);
+                            var dataValueSet = Dhis2Util.ConvertToDataValueSet(indicatorDefinition.Id, place.Key.Value, m_configuration.Domain);
 
                             // Enqueue DataValueSet instance using the DHIS2 dispatcher queue
                             this.m_queueService.Enqueue(dhis2QueueName, dataValueSet);

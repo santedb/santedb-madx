@@ -16,24 +16,32 @@
  * the License.
  * 
  * User: webberj
- * Date: 2025-09-18
+ * Date: 2025-10-23
  */
-using SanteDB.Core.Configuration;
-using SanteDB.Core.Model.Attributes;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Xml.Serialization;
+using SanteDB.Core.Configuration;
+using SanteDB.Core.Model.Attributes;
 using SanteDB.Messaging.FHIR.Rest;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2.Configuration
 {
     /// <summary>
-    /// Get the dispatcher target configuration
+    /// Configuration section for the dispatching of DHIS2 messages
     /// </summary>
     [ExcludeFromCodeCoverage]
-    [XmlType(nameof(Dhis2DispatcherTargetConfiguration), Namespace = "http://santedb.org/configuration")]
-    public class Dhis2DispatcherTargetConfiguration
+    [XmlType(nameof(Dhis2DispatcherConfigurationSection), Namespace = "http://santedb.org/configuration")]
+    public class Dhis2DispatcherConfigurationSection : IConfigurationSection
     {
+        /// <summary>
+        /// Creates a new DHIS2 dispatch configuration section
+        /// </summary>
+        public Dhis2DispatcherConfigurationSection()
+        {
+        }
+
         /// <summary>
         /// Gets or sets the endpoint for dhis2
         /// </summary>
@@ -57,15 +65,5 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2.Configuration
         [DisplayName("Domain")]
         [Description("The domain used for reconciling DHIS2 indicators. This domain must be the same as the domain when setting up the identity domain for DHIS2 identifiers.")]
         public string Domain { get; set; }
-
-        /// <summary>
-        /// Gets or sets the class which authenticates requests
-        /// </summary>
-        [XmlElement("authenticator")]
-        [DisplayName("Authenticator")]
-        [Description("The authentication plugin to use to pre-authenticate this SanteDB server against the master server")]
-        [Editor("SanteDB.Configuration.Editors.TypeSelectorEditor, SanteDB.Configuration", "System.Drawing.Design.UITypeEditor, System.Drawing")]
-        [Binding(typeof(IFhirClientAuthenticator))]
-        public TypeReferenceConfiguration Authenticator { get; set; }
     }
 }
