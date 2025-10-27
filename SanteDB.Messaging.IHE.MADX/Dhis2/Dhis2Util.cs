@@ -94,7 +94,6 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
             var indicatorDef = m_repository.Get<BiIndicatorDefinition>(indicatorId);
 
-
             if (indicatorDef == null)
             {
                 throw new FhirException(System.Net.HttpStatusCode.BadRequest, OperationOutcome.IssueType.NotFound, $"Measure {indicatorId} not registered");
@@ -110,13 +109,29 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
             var orgUnitId = ((Place)subject).Identifiers.FirstOrDefault(o => o.IdentityDomain.Name == domain)?.Value;
 
+            var period = new BiIndicatorPeriod();
+
+            switch (indicatorDef.Period.Id)
+            {
+                case "org.santedb.bi.core.period.daily":
+                    period = indicatorDef.Period.GetPeriods(DateTime.Now.AddDays(-1), 1).FirstOrDefault();
+                    break;
+                case "org.santedb.bi.core.period.weekly":
+                    period = indicatorDef.Period.GetPeriods(DateTime.Now.AddDays(-7), 1).FirstOrDefault();
+                    break;
+                case "org.santedb.bi.core.period.monthly":
+                    period = indicatorDef.Period.GetPeriods(DateTime.Now.AddMonths(-1), 1).FirstOrDefault();
+                    break;
+                case "org.santedb.bi.core.period.yearly":
+                    period = indicatorDef.Period.GetPeriods(DateTime.Now.AddYears(-1), 1).FirstOrDefault();
+                    break;
+            }
+
             dataValueSet.DataSet = dataSetId;
             dataValueSet.CompleteDate = DateTimeOffset.Now.ToString("yyyy-MM-dd");
-            dataValueSet.Period = DateTimeOffset.Now.AddMonths(-1).ToString("yyyyMM");
+            dataValueSet.Period = period.Start.ToString("yyyyMM");
             dataValueSet.OrgUnit = orgUnitId;
             dataValueSet.DataValues = new List<DataValue>();
-
-            var period = new BiIndicatorPeriod(new DateTime(2025, 08, 01), new DateTime(2025, 08, 31));
 
             foreach (var indicatorResult in m_biDataSource.ExecuteIndicator(indicatorDef, period, subject.Key.ToString()).GroupBy(o => o.Measure))
             {
