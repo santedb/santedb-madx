@@ -45,11 +45,10 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
         {
             try
             {
-                var authString = $"ApiToken {this.m_configuration.ApiToken}";
-                m_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("X-API-Key", Convert.ToBase64String(Encoding.UTF8.GetBytes(authString)));
+                m_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiToken", this.m_configuration.ApiToken);
                 m_httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                var response = m_httpClient.PostAsync(this.m_configuration.Endpoint, new StringContent(message)).GetAwaiter().GetResult();
+                var response = m_httpClient.PostAsync(this.m_configuration.Endpoint, new StringContent(message, Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
                 response.EnsureSuccessStatusCode();
 
                 // Save result into the database
