@@ -23,6 +23,7 @@ using DocumentFormat.OpenXml.Spreadsheet;
 using SanteDB.Core.Configuration;
 using SanteDB.Messaging.IHE.MADX.Dhis2.Configuration;
 using System.Configuration;
+using SanteDB.BI.Exceptions;
 
 namespace SanteDB.Messaging.IHE.MADX.Dhis2
 {
@@ -96,7 +97,7 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
 
             if (indicatorDef == null)
             {
-                throw new FhirException(System.Net.HttpStatusCode.BadRequest, OperationOutcome.IssueType.NotFound, $"Measure {indicatorId} not registered");
+                throw new InvalidOperationException($"Measure {indicatorId} not registered");
             }
 
             indicatorDef = BiUtils.ResolveRefs(indicatorDef);
@@ -115,21 +116,26 @@ namespace SanteDB.Messaging.IHE.MADX.Dhis2
             {
                 case "org.santedb.bi.core.period.daily":
                     period = indicatorDef.Period.GetPeriods(DateTime.Now.AddDays(-1), 1).FirstOrDefault();
+                    dataValueSet.Period = period.Start.ToString("yyyyMMdd");
                     break;
                 case "org.santedb.bi.core.period.weekly":
                     period = indicatorDef.Period.GetPeriods(DateTime.Now.AddDays(-7), 1).FirstOrDefault();
+
+                    var currentWeekNumber = CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(DateTime.Now, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+                    dataValueSet.Period = period.Start.Year + $"W{currentWeekNumber}";
                     break;
                 case "org.santedb.bi.core.period.monthly":
                     period = indicatorDef.Period.GetPeriods(DateTime.Now.AddMonths(-1), 1).FirstOrDefault();
+                    dataValueSet.Period = period.Start.ToString("yyyyMM");
                     break;
                 case "org.santedb.bi.core.period.yearly":
                     period = indicatorDef.Period.GetPeriods(DateTime.Now.AddYears(-1), 1).FirstOrDefault();
+                    dataValueSet.Period = period.Start.Year.ToString();
                     break;
             }
 
             dataValueSet.DataSet = dataSetId;
             dataValueSet.CompleteDate = DateTimeOffset.Now.ToString("yyyy-MM-dd");
-            dataValueSet.Period = period.Start.ToString("yyyyMM");
             dataValueSet.OrgUnit = orgUnitId;
             dataValueSet.DataValues = new List<DataValue>();
 
