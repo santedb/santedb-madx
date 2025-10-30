@@ -16,22 +16,22 @@
  * the License.
  * 
  */
+using SanteDB.BI.Model;
+using SanteDB.BI.Services;
+using SanteDB.BI.Util;
+using SanteDB.Core;
+using SanteDB.Core.Diagnostics;
+using SanteDB.Core.Jobs;
+using SanteDB.Core.Model.Entities;
+using SanteDB.Core.Queue;
+using SanteDB.Core.Security;
+using SanteDB.Core.Services;
+using SanteDB.Messaging.IHE.MADX.Dhis2;
+using SanteDB.Messaging.IHE.MADX.Dhis2.Configuration;
+using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SanteDB.Core.Diagnostics;
-using SanteDB.Core.Jobs;
-using SanteDB.BI.Model;
-using SanteDB.BI.Services;
-using SanteDB.Core;
-using SanteDB.Core.Model.Entities;
-using SanteDB.Core.Queue;
-using SanteDB.Core.Services;
-using SanteDB.Messaging.IHE.MADX.Dhis2;
-using SanteDB.Messaging.IHE.MADX.Dhis2.Constants;
-using SanteDB.Core.Security;
-using SanteDB.Messaging.IHE.MADX.Dhis2.Configuration;
-using SanteDB.Messaging.FHIR.Configuration;
 
 namespace SanteDB.Messaging.IHE.MADX.Jobs
 {
@@ -139,6 +139,18 @@ namespace SanteDB.Messaging.IHE.MADX.Jobs
 
                     foreach (var indicatorDefinition in indicatorDefinitions)
                     {
+                        var resolvedIndicatorDefinition = BiUtils.ResolveRefs(indicatorDefinition);
+
+                        // Date the report was last sent for this indicator, temporarily set as a harcoded DateTime
+                        var lastSentDate = DateTime.Now.AddDays(-1);
+                        
+                        // Get the period which includes the lastSentDate, and check if the current date is before or after that period's end
+                        var latestPeriod = resolvedIndicatorDefinition.Period.GetPeriods(lastSentDate, -1).FirstOrDefault();
+                        if (latestPeriod.End > DateTime.Now)
+                        {
+                            break; // Indicator not due to send for this job run
+                        }
+
                         foreach (var place in places)
                         {
                             // Convert indicator to a DataValueSet instance
